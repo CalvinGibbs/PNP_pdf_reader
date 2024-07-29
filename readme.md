@@ -10,5 +10,4 @@ id, date, payee, amount, notes
 Date format is: dd.mm.yy
 
 ## TODO
-- Export to CSV format that Actual supports
 - Gui for user interaction

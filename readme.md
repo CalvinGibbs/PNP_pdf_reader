@@ -8,7 +8,7 @@ In config.json specify the location of the folder that you wish store all the da
 Folders will be created in this directory upon app start
 
 The app will communicate via cli.
-Use h to get commands in cli
+Use '**h**' to get commands in cli
 
 ## CSV Notes
 The csv format is:

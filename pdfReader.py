@@ -1,0 +1,178 @@
+from pypdf import PdfReader
+from pathlib import Path
+import shutil
+import os
+import logging
+import json
+
+log = logging.getLogger()
+
+class PnpSlipScraper:
+    def __init__(self, folder):
+        self._folder = folder
+        
+        self._inputFolder = f"{self._folder}\inputFolder"
+        if not Path(self._inputFolder).exists():
+            os.mkdir(self._inputFolder)
+
+        self._outputFolder = f"{self._folder}\doneFolder"
+        if not Path(self._outputFolder).exists():
+            os.mkdir(self._outputFolder)
+        
+    @property
+    def getFolder(self):
+        return self._folder
+        
+    def scrapeFolder(self):
+        all_items = {}
+        files = os.listdir(self._inputFolder)
+        
+        files = [file for file in files if ".pdf" in file]
+        
+        for i, file in enumerate(files):
+            
+            fullPath = f"{self._inputFolder}\{file}" 
+            
+            item = self.scrapeFdfFile(fullPath)
+            # will only be one item
+            for k, v in item.items():
+                all_items[k] = v
+                break
+            
+            os.replace(fullPath, f"{self._outputFolder}\{k}.pdf")
+        
+        with open(f"{self._folder}\output.json", 'w') as f:
+            f.write(json.dumps(all_items, indent=4))
+        return all_items
+        
+        
+    def scrapeFdfFile(self, file):
+        
+        if not Path(file).exists():
+            log.info(f"File: {file} does not exist")
+            return None
+        
+        reader = PdfReader(file)
+
+        items = {}
+
+        
+        index = 0
+        flagFinished = False
+        for page in reader.pages:
+            text = page.extract_text()
+            lines = text.split('\n')
+            
+            for i, line in enumerate(lines):
+                if i <= 4:
+                    continue
+                
+                if "DUE VAT INCL" in line:
+                    slip_item = [item for item in line.split(' ') if item != '']
+                    items['Total'] = float(slip_item[len(slip_item)-1].replace(',', ''))
+                    flagFinished = True
+                    
+                
+                if "@" in line:
+                    continue
+                
+                if "cash-off" in line:
+                    continue
+                
+                slip_item = [item for item in line.split(' ') if item != '']
+                if not flagFinished:
+                    try:
+                        zero_rated = False
+                        Vitality = False
+                        if "#V" in slip_item[len(slip_item)-1]:
+                            zero_rated = True
+                            Vitality = True
+                            price = float(slip_item[len(slip_item)-1].split("#V")[0])
+                            
+                        elif "#" in slip_item[len(slip_item)-1]:
+                            price = float(slip_item[len(slip_item)-1].split('#')[0])
+                            zero_rated = True
+                            
+                        elif "V" in slip_item[len(slip_item)-1]:
+                            price = float(slip_item[len(slip_item)-1].split('V')[0])
+                            Vitality = True
+                            
+                        else:
+                            if '@' in lines[i+1]:
+                                raise Exception("Price on next line")
+                            price = float(slip_item[len(slip_item)-1])
+                        
+                        
+                        if "cash-off" in lines[i+1]:
+                            cash_off = [item for item in lines[i+1].split(' ') if item != '']
+                            cash_off = abs(float(cash_off[len(cash_off)-1]))
+                        else:
+                            cash_off = 0
+                        
+                        name = " ".join(item for x, item in enumerate(slip_item) if x!=len(slip_item)-1)
+                        
+                        quantity = 1
+                        total = price
+                            
+                    except Exception as e:
+                        
+                        # Price on next line
+                        name = " ".join(item for item in slip_item)
+                        next_line = [item for item in lines[i+1].split(' ') if item != '']
+                        
+                        zero_rated = False
+                        Vitality = False
+                        if "#V" in next_line[3]:
+                            zero_rated = True
+                            Vitality = True
+                            total = float(next_line[3].split("#V")[0])
+                            
+                        elif "#" in next_line[3]:
+                            total = float(next_line[3].split('#')[0])
+                            zero_rated = True
+                            
+                        elif "V" in next_line[3]:
+                            total = float(next_line[3].split('V')[0])
+                            Vitality = True
+                            
+                        else:
+                            total = float(next_line[3])
+                        
+                        quantity = float(next_line[0])
+                        price = float(next_line[2])
+                        
+                        
+                        if "cash-off" in lines[i+2]:
+                            cash_off = [item for item in lines[i+2].split(' ') if item != '']
+                            cash_off = abs(float(cash_off[len(cash_off)-1]))
+                        else:
+                            cash_off = 0
+                        
+                    
+
+                    items[index] = {
+                        "Name": name,
+                        "Quantity": quantity,
+                        "Price": price,
+                        "Total": total,
+                        "Cash-off": cash_off,
+                        "Zero-Rated": zero_rated,
+                        "Vitality Health Food Item": Vitality
+                    }
+                    index += 1
+                    
+                if flagFinished:
+                    if "----------------------------------------" in line:
+                        date = lines[i+1].split(' ')
+                        date = f"{date[len(date)-2]} {date[len(date)-1].replace(':', '_')}"
+                    
+            
+        return {date: items}
+    
+def main():
+    folder = r"C:\Users\calvi\OneDrive\PersonalCoding\pdf_reader\pnpslips"
+    scraper = PnpSlipScraper(folder)
+    items = scraper.scrapeFolder()
+
+if __name__ == "__main__":
+    main()

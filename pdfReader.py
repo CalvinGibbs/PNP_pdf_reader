@@ -22,6 +22,28 @@ class PnpSlipScraper:
     @property
     def getFolder(self):
         return self._folder
+    
+    def generateCsv(self, data):
+        
+        csvFileData = "id,date,payee,amount,notes\n"
+        id = 0
+        for item in data:
+            for x in data[item]:
+                if x == "Total":
+                    continue
+                csvFileData += f"{id},{item.split(' ')[0]},"
+                name = data[item][x]["Name"]
+                total = data[item][x]["Total"]
+                notes = f"Vitality: {data[item][x]['Vitality Health Food Item']} "
+                notes += f"Zero Rated: {data[item][x]['Zero-Rated']} "
+                notes += f"Cash Off: {data[item][x]['Cash-off']}"
+                
+                csvFileData += f"{name},{total},{notes}\n"
+                id += 1
+                
+        with open(f"{self._folder}\\test.csv", 'w') as f:
+            f.write(csvFileData)
+        
         
     def scrapeFolder(self):
         all_items = {}
@@ -41,9 +63,17 @@ class PnpSlipScraper:
             
             os.replace(fullPath, f"{self._outputFolder}\{k}.pdf")
         
+        with open(f"{self._folder}\output.json", 'r') as f:
+            data = json.loads(f.read())
+        
+        for item in all_items:
+            data[item] = all_items[item]
+        
         with open(f"{self._folder}\output.json", 'w') as f:
-            f.write(json.dumps(all_items, indent=4))
-        return all_items
+            f.write(json.dumps(data, indent=4))
+        
+        self.generateCsv(data)
+        return data
         
         
     def scrapeFdfFile(self, file):

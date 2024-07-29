@@ -1,6 +1,5 @@
 from pypdf import PdfReader
 from pathlib import Path
-import shutil
 import os
 import logging
 import json

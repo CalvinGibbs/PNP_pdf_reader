@@ -200,8 +200,11 @@ class PnpSlipScraper:
         return {date: items}
     
 def main():
-    folder = r"C:\Users\calvi\OneDrive\PersonalCoding\pdf_reader\pnpslips"
-    scraper = PnpSlipScraper(folder)
+    cwd = os.getcwd()
+    with open(f"{cwd}\config.json", 'r') as f:
+        config = json.loads(f.read())
+    
+    scraper = PnpSlipScraper(config['folder'])
     items = scraper.scrapeFolder()
 
 if __name__ == "__main__":

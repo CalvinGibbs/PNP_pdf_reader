@@ -4,8 +4,15 @@ import shutil
 import os
 import logging
 import json
+import sys
 
-log = logging.getLogger()
+log = logging.getLogger("")
+log.setLevel(logging.INFO)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+
+log.addHandler(handler)
 
 class PnpSlipScraper:
     def __init__(self, folder):
@@ -72,7 +79,7 @@ class PnpSlipScraper:
         with open(f"{self._folder}\output.json", 'w') as f:
             f.write(json.dumps(data, indent=4))
         
-        self.generateCsv(data)
+        #self.generateCsv(data)
         return data
         
         
@@ -205,7 +212,37 @@ def main():
         config = json.loads(f.read())
     
     scraper = PnpSlipScraper(config['folder'])
-    items = scraper.scrapeFolder()
-
+    
+    help = """
+    q: Quit application
+    sf: Srape Input folder
+    csv: Generate csv file
+    gf: Get folder location
+    h: Print Help
+    """
+    
+    items = None
+    log.info(help)
+    while True:
+        inpt = input("Enter command:\n")
+        if inpt == 'q':
+            break
+        elif inpt == 'h':
+            log.info(help)
+        elif inpt == 'sf':
+            items = scraper.scrapeFolder()
+            log.info("Done scraping\n")
+        elif inpt == 'csv':
+            if items == None:
+                log.warning("You have not gotten any data yet. Please use command [sf] to scrape the folder\n")
+                continue
+            scraper.generateCsv(items)
+            log.info("Done generating csv\n")
+        elif inpt == 'gf':
+            log.info(f"Folder: '{scraper.getFolder}'\n")
+        
+    log.info("Exiting...")
+    
+    
 if __name__ == "__main__":
     main()

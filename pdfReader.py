@@ -17,11 +17,11 @@ class PnpSlipScraper:
     def __init__(self, folder):
         self._folder = folder
         
-        self._inputFolder = f"{self._folder}\inputFolder"
+        self._inputFolder = f"{self._folder}/inputFolder"
         if not Path(self._inputFolder).exists():
             os.mkdir(self._inputFolder)
 
-        self._outputFolder = f"{self._folder}\doneFolder"
+        self._outputFolder = f"{self._folder}/doneFolder"
         if not Path(self._outputFolder).exists():
             os.mkdir(self._outputFolder)
         
@@ -47,7 +47,7 @@ class PnpSlipScraper:
                 csvFileData += f"{name},{total},{notes}\n"
                 id += 1
                 
-        with open(f"{self._folder}\\test.csv", 'w') as f:
+        with open(f"{self._folder}/test.csv", 'w') as f:
             f.write(csvFileData)
         
         
@@ -59,7 +59,7 @@ class PnpSlipScraper:
         
         for i, file in enumerate(files):
             
-            fullPath = f"{self._inputFolder}\{file}" 
+            fullPath = f"{self._inputFolder}/{file}" 
             
             item = self.scrapeFdfFile(fullPath)
             # will only be one item
@@ -69,13 +69,17 @@ class PnpSlipScraper:
             
             os.replace(fullPath, f"{self._outputFolder}\{k}.pdf")
         
-        with open(f"{self._folder}\output.json", 'r') as f:
-            data = json.loads(f.read())
+        if Path(self._folder, "output.json").exists():
+            with open(Path(self._folder, "output.json"), 'r') as f:
+                data = json.loads(f.read())
+        
+        else:
+            data = {}
         
         for item in all_items:
             data[item] = all_items[item]
         
-        with open(f"{self._folder}\output.json", 'w') as f:
+        with open(Path(self._folder, "output.json"), 'w') as f:
             f.write(json.dumps(data, indent=4))
         
         #self.generateCsv(data)
@@ -207,7 +211,7 @@ class PnpSlipScraper:
     
 def main():
     cwd = os.getcwd()
-    with open(f"{cwd}\config.json", 'r') as f:
+    with open(f"{cwd}/config.json", 'r') as f:
         config = json.loads(f.read())
     
     scraper = PnpSlipScraper(config['folder'])

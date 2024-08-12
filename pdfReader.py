@@ -5,6 +5,10 @@ import logging
 import json
 import sys
 
+"""
+Just some text to test change for git
+"""
+
 log = logging.getLogger("")
 log.setLevel(logging.INFO)
 
@@ -53,13 +57,17 @@ class PnpSlipScraper:
         
     def scrapeFolder(self):
         all_items = {}
-        files = os.listdir(self._inputFolder)
+        files = os.listdir(self._folder)
+
+        if len(files) == 0:
+            print("Input folder empty or misconfigured")
+            sys.exit()
         
         files = [file for file in files if ".pdf" in file]
         
         for i, file in enumerate(files):
             
-            fullPath = f"{self._inputFolder}/{file}" 
+            fullPath = f"{self._folder}/{file}" 
             
             item = self.scrapeFdfFile(fullPath)
             # will only be one item
@@ -67,7 +75,7 @@ class PnpSlipScraper:
                 all_items[k] = v
                 break
             
-            os.replace(fullPath, f"{self._outputFolder}\{k}.pdf")
+            os.replace(fullPath, f"{self._outputFolder}/{k}.pdf")
         
         if Path(self._folder, "output.json").exists():
             with open(Path(self._folder, "output.json"), 'r') as f:
@@ -95,22 +103,26 @@ class PnpSlipScraper:
         reader = PdfReader(file)
 
         items = {}
-
+        date = ""
         
         index = 0
         flagFinished = False
-        for page in reader.pages:
+        flagNoMoreItems = False
+        for p, page in enumerate(reader.pages):
             text = page.extract_text()
             lines = text.split('\n')
             
+            if flagFinished:
+                break
+
             for i, line in enumerate(lines):
-                if i <= 4:
-                    continue
+                if p < 1 and i <= 4:
+                   continue
                 
                 if "DUE VAT INCL" in line:
                     slip_item = [item for item in line.split(' ') if item != '']
                     items['Total'] = float(slip_item[len(slip_item)-1].replace(',', ''))
-                    flagFinished = True
+                    flagNoMoreItems = True
                     
                 
                 if "@" in line:
@@ -119,8 +131,13 @@ class PnpSlipScraper:
                 if "cash-off" in line:
                     continue
                 
+                if "----------------------------------------" in line:
+                    date = lines[i+1].split(' ')
+                    date = f"{date[len(date)-2]} {date[len(date)-1].replace(':', '_')}"
+                    flagFinished = True
+
                 slip_item = [item for item in line.split(' ') if item != '']
-                if not flagFinished:
+                if not flagNoMoreItems:
                     try:
                         zero_rated = False
                         Vitality = False
@@ -128,21 +145,21 @@ class PnpSlipScraper:
                             zero_rated = True
                             Vitality = True
                             price = float(slip_item[len(slip_item)-1].split("#V")[0])
-                            
+
                         elif "#" in slip_item[len(slip_item)-1]:
                             price = float(slip_item[len(slip_item)-1].split('#')[0])
                             zero_rated = True
-                            
+
                         elif "V" in slip_item[len(slip_item)-1]:
                             price = float(slip_item[len(slip_item)-1].split('V')[0])
                             Vitality = True
-                            
+
                         else:
                             if '@' in lines[i+1]:
                                 raise Exception("Price on next line")
                             price = float(slip_item[len(slip_item)-1])
-                        
-                        
+
+
                         if "cash-off" in lines[i+1]:
                             cash_off = [item for item in lines[i+1].split(' ') if item != '']
                             cash_off = abs(float(cash_off[len(cash_off)-1]))
@@ -154,8 +171,8 @@ class PnpSlipScraper:
                         quantity = 1
                         total = price
                             
-                    except Exception as e:
-                        
+                    except Exception:
+
                         # Price on next line
                         name = " ".join(item for item in slip_item)
                         next_line = [item for item in lines[i+1].split(' ') if item != '']
@@ -201,10 +218,6 @@ class PnpSlipScraper:
                     }
                     index += 1
                     
-                if flagFinished:
-                    if "----------------------------------------" in line:
-                        date = lines[i+1].split(' ')
-                        date = f"{date[len(date)-2]} {date[len(date)-1].replace(':', '_')}"
                     
             
         return {date: items}
@@ -227,7 +240,7 @@ def main():
     items = None
     log.info(help)
     while True:
-        inpt = input("Enter command:\n")
+        inpt = input("Enter command: ")
         if inpt == 'q':
             break
         elif inpt == 'h':
